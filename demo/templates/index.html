@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Lost Detail Restorer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .upload-section {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .upload-section:hover {
+            background: #f0f4ff;
+            border-color: #764ba2;
+        }
+
+        .upload-section.dragover {
+            background: #e8edff;
+            border-color: #764ba2;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .upload-label {
+            font-size: 1.2em;
+            color: #667eea;
+            cursor: pointer;
+            display: block;
+            margin-bottom: 20px;
+        }
+
+        .options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .option input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.1em;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .button:active {
+            transform: translateY(0);
+        }
+
+        .button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .preview-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-top: 30px;
+        }
+
+        .preview-box {
+            text-align: center;
+        }
+
+        .preview-box h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .preview-image {
+            width: 100%;
+            max-width: 500px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            margin: 0 auto;
+            display: block;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .report {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .report.active {
+            display: block;
+        }
+
+        .report h3 {
+            margin-bottom: 15px;
+            color: #667eea;
+        }
+
+        .report-section {
+            margin-bottom: 20px;
+        }
+
+        .report-section h4 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .report-section ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .report-section li {
+            padding: 5px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .report-section li:last-child {
+            border-bottom: none;
+        }
+
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .error.active {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .preview-section {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>✨ AI Lost Detail Restorer ✨</h1>
+            <p>Restore lost details in old, low-quality photographs</p>
+        </div>
+
+        <div class="content">
+            <div class="upload-section" id="uploadSection">
+                <label for="fileInput" class="upload-label">
+                    📸 Click to upload or drag and drop your image
+                </label>
+                <input type="file" id="fileInput" accept="image/*">
+                <p style="color: #666; margin-top: 10px;">Supports: JPG, PNG, and other image formats</p>
+            </div>
+
+            <div class="options">
+                <div class="option">
+                    <input type="checkbox" id="preserveFaces" checked>
+                    <label for="preserveFaces">Preserve Face Identity</label>
+                </div>
+                <div class="option">
+                    <input type="checkbox" id="reconstructText" checked>
+                    <label for="reconstructText">Reconstruct Text</label>
+                </div>
+                <div class="option">
+                    <input type="checkbox" id="useMultiFrame">
+                    <label for="useMultiFrame">Use Multi-Frame (if available)</label>
+                </div>
+            </div>
+
+            <button class="button" id="restoreButton" disabled>🔮 Restore Image</button>
+            <button class="button" id="restoreFadedButton" disabled>🎨 Restore Faded Photo</button>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Restoring your image... This may take a moment.</p>
+            </div>
+
+            <div class="error" id="error"></div>
+
+            <div class="preview-section" id="previewSection" style="display: none;">
+                <div class="preview-box">
+                    <h3>Original</h3>
+                    <img id="originalPreview" class="preview-image" alt="Original image">
+                </div>
+                <div class="preview-box">
+                    <h3>Restored ✨</h3>
+                    <img id="restoredPreview" class="preview-image" alt="Restored image">
+                </div>
+            </div>
+
+            <div class="report" id="report">
+                <h3>📊 Restoration Report</h3>
+                <div id="reportContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const uploadSection = document.getElementById('uploadSection');
+        const restoreButton = document.getElementById('restoreButton');
+        const restoreFadedButton = document.getElementById('restoreFadedButton');
+        const loading = document.getElementById('loading');
+        const error = document.getElementById('error');
+        const previewSection = document.getElementById('previewSection');
+        const originalPreview = document.getElementById('originalPreview');
+        const restoredPreview = document.getElementById('restoredPreview');
+        const report = document.getElementById('report');
+        const reportContent = document.getElementById('reportContent');
+
+        let currentImage = null;
+
+        // File input handling
+        fileInput.addEventListener('change', handleFileSelect);
+        uploadSection.addEventListener('click', () => fileInput.click());
+        uploadSection.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadSection.classList.add('dragover');
+        });
+        uploadSection.addEventListener('dragleave', () => {
+            uploadSection.classList.remove('dragover');
+        });
+        uploadSection.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadSection.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                handleFileSelect({ target: fileInput });
+            }
+        });
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    currentImage = event.target.result;
+                    originalPreview.src = currentImage;
+                    previewSection.style.display = 'grid';
+                    restoreButton.disabled = false;
+                    restoreFadedButton.disabled = false;
+                    error.classList.remove('active');
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        restoreButton.addEventListener('click', () => restoreImage(false));
+        restoreFadedButton.addEventListener('click', () => restoreImage(true));
+
+        async function restoreImage(isFaded) {
+            if (!currentImage) return;
+
+            loading.classList.add('active');
+            restoreButton.disabled = true;
+            restoreFadedButton.disabled = true;
+            error.classList.remove('active');
+            report.classList.remove('active');
+
+            try {
+                const options = {
+                    image: currentImage,
+                    preserve_faces: document.getElementById('preserveFaces').checked,
+                    reconstruct_text: document.getElementById('reconstructText').checked,
+                    use_multi_frame: document.getElementById('useMultiFrame').checked
+                };
+
+                const endpoint = isFaded ? '/api/restore-faded' : '/api/restore';
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(options)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    restoredPreview.src = 'data:image/png;base64,' + data.restored_image;
+                    displayReport(data.report);
+                } else {
+                    throw new Error(data.error || 'Restoration failed');
+                }
+            } catch (err) {
+                error.textContent = 'Error: ' + err.message;
+                error.classList.add('active');
+            } finally {
+                loading.classList.remove('active');
+                restoreButton.disabled = false;
+                restoreFadedButton.disabled = false;
+            }
+        }
+
+        function displayReport(reportData) {
+            const summary = reportData.summary || {};
+            const details = reportData.detailed_results || {};
+
+            let html = '';
+
+            if (summary.operations_performed && summary.operations_performed.length > 0) {
+                html += '<div class="report-section"><h4>Operations Performed</h4><ul>';
+                summary.operations_performed.forEach(op => {
+                    html += `<li>${op.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</li>`;
+                });
+                html += '</ul></div>';
+            }
+
+            if (summary.improvements_made && Object.keys(summary.improvements_made).length > 0) {
+                html += '<div class="report-section"><h4>Improvements Made</h4><ul>';
+                for (const [key, value] of Object.entries(summary.improvements_made)) {
+                    if (typeof value === 'string') {
+                        html += `<li><strong>${key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}:</strong> ${value}</li>`;
+                    }
+                }
+                html += '</ul></div>';
+            }
+
+            if (summary.details_restored && summary.details_restored.length > 0) {
+                html += '<div class="report-section"><h4>Details Restored</h4><ul>';
+                summary.details_restored.forEach(detail => {
+                    html += `<li>${detail}</li>`;
+                });
+                html += '</ul></div>';
+            }
+
+            if (details.face_preservation) {
+                const fp = details.face_preservation;
+                html += '<div class="report-section"><h4>Face Preservation</h4>';
+                html += `<p>Faces detected: ${fp.faces_detected || 0}</p>`;
+                html += `<p>Faces preserved: ${fp.faces_preserved || 0}</p></div>`;
+            }
+
+            if (details.text_reconstruction) {
+                const tr = details.text_reconstruction;
+                html += '<div class="report-section"><h4>Text Reconstruction</h4>';
+                html += `<p>Text regions found: ${tr.text_regions_found || 0}</p>`;
+                if (tr.text_detected && tr.text_detected.length > 0) {
+                    html += '<ul>';
+                    tr.text_detected.forEach(item => {
+                        html += `<li>Detected: "${item.text}"</li>`;
+                    });
+                    html += '</ul>';
+                }
+                html += '</div>';
+            }
+
+            reportContent.innerHTML = html;
+            report.classList.add('active');
+        }
+    </script>
+</body>
+</html>
+
+
