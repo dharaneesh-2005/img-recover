@@ -5,9 +5,17 @@ Ensures faces are enhanced without changing identity.
 
 import cv2
 import numpy as np
-import face_recognition
 from typing import List, Dict, Tuple, Optional
 import logging
+
+# Try to import face_recognition, make it optional
+try:
+    import face_recognition
+    FACE_RECOGNITION_AVAILABLE = True
+except ImportError:
+    FACE_RECOGNITION_AVAILABLE = False
+    logger = logging.getLogger(__name__)
+    logger.warning("face_recognition not available. Face preservation will use basic OpenCV detection.")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -31,21 +39,35 @@ class FacePreservation:
         Returns:
             List of face locations and encodings
         """
-        # Convert BGR to RGB for face_recognition
-        rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        
-        # Detect faces using face_recognition library
-        face_locations = face_recognition.face_locations(rgb_image, model='hog')
-        face_encodings = face_recognition.face_encodings(rgb_image, face_locations)
-        
         faces = []
-        for i, (top, right, bottom, left) in enumerate(face_locations):
-            face_info = {
-                'location': (top, right, bottom, left),
-                'encoding': face_encodings[i] if i < len(face_encodings) else None,
-                'bbox': (left, top, right - left, bottom - top)
-            }
-            faces.append(face_info)
+        
+        if FACE_RECOGNITION_AVAILABLE:
+            # Convert BGR to RGB for face_recognition
+            rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            
+            # Detect faces using face_recognition library
+            face_locations = face_recognition.face_locations(rgb_image, model='hog')
+            face_encodings = face_recognition.face_encodings(rgb_image, face_locations)
+            
+            for i, (top, right, bottom, left) in enumerate(face_locations):
+                face_info = {
+                    'location': (top, right, bottom, left),
+                    'encoding': face_encodings[i] if i < len(face_encodings) else None,
+                    'bbox': (left, top, right - left, bottom - top)
+                }
+                faces.append(face_info)
+        else:
+            # Fallback to OpenCV Haar Cascade
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if len(image.shape) == 3 else image
+            face_rects = self.face_cascade.detectMultiScale(gray, 1.1, 4)
+            
+            for (x, y, w, h) in face_rects:
+                face_info = {
+                    'location': (y, x + w, y + h, x),
+                    'encoding': None,
+                    'bbox': (x, y, w, h)
+                }
+                faces.append(face_info)
             
         return faces
     
@@ -164,6 +186,9 @@ class FacePreservation:
             Distance (lower = more similar)
         """
         if face1_encoding is None or face2_encoding is None:
+            return float('inf')
+        
+        if not FACE_RECOGNITION_AVAILABLE:
             return float('inf')
             
         distance = face_recognition.face_distance([face1_encoding], face2_encoding)[0]

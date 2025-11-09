@@ -18,5 +18,11 @@ matplotlib==3.8.2
 scipy==1.11.4
 imageio==2.31.6
 jinja2==3.1.2
+# AI Enhancement models (optional but recommended)
+# Try py-real-esrgan first (easier to install on Windows):
+py-real-esrgan>=0.2.0
+# Alternative (may have installation issues on Windows):
+# realesrgan>=0.3.0
+# basicsr>=1.4.2
 
 

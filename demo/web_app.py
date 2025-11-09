@@ -97,6 +97,10 @@ def restore():
         preserve_faces = data.get('preserve_faces', True)
         reconstruct_text = data.get('reconstruct_text', True)
         use_multi_frame = data.get('use_multi_frame', False)
+        # Auto-enable upscaling if AI model is available (for better results)
+        upscale = data.get('upscale', restorer.restoration_engine.use_ai_model and 
+                          restorer.restoration_engine.ai_enhancer and 
+                          restorer.restoration_engine.ai_enhancer.is_available())
         additional_frames = []
         
         # Process additional frames if provided
@@ -104,7 +108,8 @@ def restore():
             for frame_data in data['additional_frames']:
                 additional_frames.append(base64_to_image(frame_data))
         
-        # Restore image
+        # Restore image - upscaling is now handled automatically in main_restorer
+        # No need to override enhance_image method anymore
         restored_image, report = restorer.restore(
             image=input_image,
             additional_frames=additional_frames if additional_frames else None,
@@ -155,14 +160,21 @@ def restore_faded():
 
 
 if __name__ == '__main__':
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='AI Lost Detail Restorer Web Demo')
+    parser.add_argument('-p', '--port', type=int, default=5000, help='Port to run the server on (default: 5000)')
+    parser.add_argument('--host', type=str, default='0.0.0.0', help='Host to bind to (default: 0.0.0.0)')
+    args = parser.parse_args()
+    
     print("=" * 60)
     print("AI Lost Detail Restorer - Web Demo")
     print("=" * 60)
-    print("\nStarting server...")
-    print("Open your browser to: http://localhost:5000")
+    print(f"\nStarting server on port {args.port}...")
+    print(f"Open your browser to: http://localhost:{args.port}")
     print("\nPress Ctrl+C to stop the server")
     print("=" * 60)
     
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, host=args.host, port=args.port)
 
 

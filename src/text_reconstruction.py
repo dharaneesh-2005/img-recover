@@ -4,11 +4,22 @@ Text detection and reconstruction module for signboards and text in images.
 
 import cv2
 import numpy as np
-import pytesseract
-import easyocr
 from typing import List, Dict, Tuple, Optional
 import logging
 import re
+
+# Try to import OCR libraries, make them optional
+try:
+    import pytesseract
+    TESSERACT_AVAILABLE = True
+except ImportError:
+    TESSERACT_AVAILABLE = False
+
+try:
+    import easyocr
+    EASYOCR_AVAILABLE = True
+except ImportError:
+    EASYOCR_AVAILABLE = False
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -19,11 +30,15 @@ class TextReconstruction:
     
     def __init__(self):
         # Initialize EasyOCR reader (supports multiple languages)
-        try:
-            self.easyocr_reader = easyocr.Reader(['en'], gpu=False)
-        except Exception as e:
-            logger.warning(f"EasyOCR initialization failed: {e}. Using Tesseract only.")
-            self.easyocr_reader = None
+        self.easyocr_reader = None
+        if EASYOCR_AVAILABLE:
+            try:
+                self.easyocr_reader = easyocr.Reader(['en'], gpu=False)
+            except Exception as e:
+                logger.warning(f"EasyOCR initialization failed: {e}. Using Tesseract only.")
+                self.easyocr_reader = None
+        else:
+            logger.warning("EasyOCR not available. Text reconstruction will be limited.")
             
     def detect_text_regions(self, image: np.ndarray) -> List[Dict]:
         """
@@ -174,14 +189,18 @@ class TextReconstruction:
                 logger.debug(f"EasyOCR failed: {e}")
         
         # Fallback to Tesseract
-        try:
-            # Configure Tesseract for better results
-            custom_config = r'--oem 3 --psm 6'
-            text = pytesseract.image_to_string(text_region, config=custom_config)
-            text = re.sub(r'\s+', ' ', text).strip()
-            return text if text else None
-        except Exception as e:
-            logger.debug(f"Tesseract failed: {e}")
+        if TESSERACT_AVAILABLE:
+            try:
+                # Configure Tesseract for better results
+                custom_config = r'--oem 3 --psm 6'
+                text = pytesseract.image_to_string(text_region, config=custom_config)
+                text = re.sub(r'\s+', ' ', text).strip()
+                return text if text else None
+            except Exception as e:
+                logger.debug(f"Tesseract failed: {e}")
+                return None
+        else:
+            logger.debug("Tesseract not available. Cannot perform OCR.")
             return None
     
     def restore_blurred_text(self, 

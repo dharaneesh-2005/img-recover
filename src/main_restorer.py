@@ -23,8 +23,22 @@ class LostDetailRestorer:
     Orchestrates all restoration modules.
     """
     
-    def __init__(self):
-        self.restoration_engine = RestorationEngine()
+    def __init__(self, use_ai_model: bool = True, ai_model_name: str = 'realesrgan', ai_model_scale: int = 4, ai_exe_path: Optional[str] = None):
+        """
+        Initialize Lost Detail Restorer.
+        
+        Args:
+            use_ai_model: Whether to use AI models for enhancement (default: True)
+            ai_model_name: AI model to use ('realesrgan', 'esrgan', 'traditional')
+            ai_model_scale: Upscaling factor for AI models (2 or 4)
+            ai_exe_path: Path to portable Real-ESRGAN executable (optional)
+        """
+        self.restoration_engine = RestorationEngine(
+            use_ai_model=use_ai_model,
+            ai_model_name=ai_model_name,
+            ai_model_scale=ai_model_scale,
+            ai_exe_path=ai_exe_path
+        )
         self.face_preservation = FacePreservation()
         self.text_reconstruction = TextReconstruction()
         self.multi_frame_comparison = MultiFrameComparison()
@@ -69,13 +83,18 @@ class LostDetailRestorer:
             combined_image, multi_frame_results = self.multi_frame_comparison.compare_and_restore(all_frames)
             image = combined_image
         
-        # Main restoration
+        # Main restoration with quality enhancement
+        # Enable upscaling when using AI models for better results
+        use_upscale = self.restoration_engine.use_ai_model and self.restoration_engine.ai_enhancer and self.restoration_engine.ai_enhancer.is_available()
+        
         enhanced_image, restoration_results = self.restoration_engine.enhance_image(
             image,
             denoise=True,
             sharpen=True,
             contrast=True,
-            color_correction=True
+            color_correction=True,
+            enhance_quality=True,  # Enable real quality enhancement
+            upscale=use_upscale  # Auto-enable upscaling when AI model is available
         )
         
         # Face preservation
